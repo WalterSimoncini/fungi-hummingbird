@@ -1,48 +1,11 @@
+import os
 import torch
 from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 from PIL import Image
 from typing import Tuple, Any
 from pathlib import Path
 from typing import Optional, Callable
-
-import torch
-from abc import ABC, abstractmethod
-import os
-
-
-class Dataset(torch.nn.Module):
-    @abstractmethod
-    def get_train_loader(self):
-        pass
-
-    @abstractmethod
-    def get_test_loader(self):
-        pass
-
-    @abstractmethod
-    def get_val_loader(self):
-        pass
-
-    @abstractmethod
-    def get_train_dataset(self):
-        pass
-
-    @abstractmethod
-    def get_test_dataset(self):
-        pass
-
-    @abstractmethod
-    def get_val_dataset(self):
-        pass
-    
-    @abstractmethod
-    def get_num_classes(self):
-        pass
-
-    @abstractmethod
-    def get_dataset_name(self):
-        pass
 
 
 class VOCDataset(Dataset):
@@ -120,8 +83,19 @@ class PascalVOCDataModule():
         num_workers (int): number of workers for dataloader
 
     """
-
-    def __init__(self, batch_size, train_transform, val_transform, test_transform,  dir, num_workers=0, train_img_set:str="trainaug", val_image_set:str="val", test_image_set:str="val" ) -> None:
+    def __init__(
+        self,
+        batch_size,
+        train_transform,
+        val_transform,
+        test_transform,
+        dir,
+        num_workers=18,
+        train_img_set:str="trainaug",
+        val_image_set:str="val",
+        test_image_set:str="val",
+        num_train_samples: int = None
+    ) -> None:
         super().__init__()
         self.num_workers = num_workers
         self.batch_size = batch_size
@@ -135,6 +109,7 @@ class PascalVOCDataModule():
         self.shared_train_transform = train_transform["shared"]
         self.shared_val_transform = val_transform["shared"]
         self.shared_test_transform = test_transform["shared"]
+        self.num_train_samples = num_train_samples
 
         self.train_img_set = train_img_set
         self.val_image_set = val_image_set
@@ -145,6 +120,15 @@ class PascalVOCDataModule():
         if os.path.isdir(self.dir) == False:
             download = True
         self.train_dataset = VOCDataset(self.dir, image_set=self.train_img_set, transform=self.image_train_transform, target_transform=self.target_train_transform, transforms=self.shared_train_transform, return_masks=True)
+
+        # Only use a subset of the training dataset if
+        # specified, otherwise use the full dataset
+        if self.num_train_samples is not None:
+            training_indices = torch.randperm(len(self.train_dataset))[:self.num_train_samples]
+            self.train_dataset = Subset(self.train_dataset, training_indices)
+
+        print(f"the training dataset has length {len(self.train_dataset)}")
+
         self.val_dataset = VOCDataset(self.dir,  self.val_image_set, transform=self.image_val_transform, target_transform=self.target_val_transform, transforms=self.shared_val_transform, return_masks=True)
         self.test_dataset = VOCDataset(self.dir, self.test_image_set, transform=self.image_test_transform, target_transform=self.target_test_transform, transforms=self.shared_test_transform, return_masks=True)
 

@@ -1,267 +1,268 @@
-### Description
-This repository is a reproduction repository that implements the Dense NN Retrieval Evaluation method introduced by Balažević et al. ["Towards In-context Scene Understanding", NeurIPS 2023](https://arxiv.org/abs/2306.01667).
+# FUNGI HummingBird Evaluation
 
-Briefly, it evaluates the effectiveness of spatial features acquired from a vision encoder, to associate themselves to relevant features from a dataset (validation), through the utilization of a k-NN classifier/retriever that operates across various proportions of training data.
+This repository contains the HummingBird evaluation for FUNGI features, and it builds on top of [open-hummingbird-eval](https://github.com/vpariza/open-hummingbird-eval). We recommend using the original repository to evaluate the raw DINO features.
 
+## Setup
 
-![Hummingbird Evaluation](./images/hbird_icl_diagram.png)
-Image taken from ["Towards In-context Scene Understanding", NeurIPS 2023](https://arxiv.org/abs/2306.01667).
+Set up the repository by creating an appropriate conda environment and installing the dependencies with the following commands:
 
-This evaluation approach helps understand scenes by comparing new images with ones we already know. We start by showing it a bunch of densely labeled images. It densely encodes the images such that we have both the encoded patches (top-left section) and their labels (bottom-left section) as taken from a set of image-label examples given (left part). Then, we give it new images to describe (right part) without the labels, which again densely encodes. Then, it compares parts (encoded patches) of each of the given images with similar parts in the examples it knows. By looking at what's closest, it figures out what is the potential label for that part and therefore on what the new image might be showing. This is a flexible approach because it doesn't assume anything about the labels.
+```sh
+conda create -n hummingbird-fungi python=3.10
+conda activate hummingbird-fungi
 
-Reproduction done by:
-* Valentinos Pariza
-* Mohammadreza Salehi
-* Yuki M. Asano
-
-At the **University of Amsterdam (UvA)**
-
-
-### Notes
-* For any questions/issues etc. please open a github issue on this repository.
-* If you find this repository useful, please consider starring and citing.
-
-### Results we got with our implementation on Pascal VOC
-For the experiments below we used two dataset augmentation epochs and
-also we used image size of (512,512) for the dino and (504,504) for dinov2.
-
-<table>
-  <tr>
-    <th rowspan="2">arch</th>
-    <th rowspan="2">model</th>
-    <th colspan="3">PVOC (mIoU) per Memory Size</th>
-    <th colspan="1">PVOC (mIoU) <br> from orig. Paper</th>
-  </tr>
-  <tr>
-    <th>1024*10<sup>2</sup></th>
-    <th>1024*10<sup>3</sup></th>
-    <th>1024*10<sup>4</sup></th>
-    <th>1024*10<sup>4</sup></th>
-  <tr>
-    <td>ViT-S/16</td>
-    <td>dino</td>
-    <td>37.2</td>
-    <td>43.1</td>
-    <td>46.6</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>ViT-B/16</td>
-    <td>dino</td>
-    <td>44.9</td>
-    <td>50.8</td>
-    <td>55.7</td>
-    <td>55.9</td>
-  </tr>
-  <tr>
-    <td>ViT-S/14</td>
-    <td>dinov2</td>
-    <td>70.2</td>
-    <td>74.9</td>
-    <td>77.0</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>ViT-B/14</td>
-    <td>dinov2</td>
-    <td>69.1</td>
-    <td>74.6</td>
-    <td>76.9</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>ViT-L/14</td>
-    <td>dinov2</td>
-    <td>64.6</td>
-    <td>71.7</td>
-    <td>74.8</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>ViT-G/14</td>
-    <td>dinov2</td>
-    <td>62.3</td>
-    <td>69.9</td>
-    <td>73.6</td>
-    <td>-</td>
-  </tr>
-</table>
-
-
-### Usage
-
-#### Example on how to Evaluate dino with the Hummingbird (Dense NN Retrieval) Evaluation  on Pascal VOC
-
-```python
-import torch
-from src.hbird_eval import hbird_evaluation
-# Parameters for the model dino
-device = 'cuda'
-input_size = 224
-batch_size = 64
-patch_size = 16
-embed_dim = 384
-model = torch.hub.load('facebookresearch/dino:main', 'dino_vits16')
-
-# Define the function to extract features from the model
-# Input to the function is the model and the images
-# Output of the function is the features extracted from the model 
-# and optionally the attention maps
-fn = lambda model, imgs: (model.get_intermediate_layers(imgs)[0][:, 1:], None)
-
-
-# Evaluate the model using the Full In-Context Learning Hummingbird  
-# or Dense k-NN Retrieval Evaluation on the Pascal VOC Dataset
-hbird_miou = hbird_evaluation(model.to(device), 
-        d_model=embed_dim,          # size of the embedding feature vectors of patches
-        patch_size=patch_size, 
-        batch_size = batch_size, 
-        input_size=224,             
-        augmentation_epoch=1,       # how many iterations of augmentations to use on top of 
-                                    # the training dataset in order to generate the memory
-        device=device,              
-        return_knn_details=False,   # whether to return additional NNs details
-        num_neighbour=30,           # the number of neighbors to fetch per image patch
-        nn_params=None,             # Other parameters to be used for the k-NN operator
-        ftr_extr_fn=fn,             # function that extracts image patch features with 
-                                    # a vision encoder
-        dataset_name='voc',         # the name of the dataset to use, 
-                                    # currently only Pascal VOC is included.
-        data_dir='<the path to the Pascal VOC Dataset>',    # path to the dataset 
-                                                            # to use for evaluation
-        memory_size=None)           # How much you want to limit your dataset, 
-                                    # None if to be left unbounded
-print('Dense NN Ret - miou score:', hbird_miou) 
-
+pip install -r requirements.txt
 ```
 
-#### Example on how to Evaluate dinov2 with Dense NN Retrieval on Pascal VOC
+Once you've setup your environment download and unpack the full Pascal VOC dataset using the following command:
 
-```python
-import torch
-from src.hbird_eval import hbird_evaluation
-# Parameters for the model dino
-device = 'cuda'
-input_size = 224
-batch_size = 256
-patch_size = 14
-embed_dim = 384
-model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
-
-# Define the function to extract features from the model
-# Input to the function is the model and the images
-# Output of the function is the features extracted from the model 
-# and optionally the attention maps
-fn = lambda model, imgs: (model.forward_features(imgs)['x_norm_patchtokens'], None)
-
-
-# Evaluate the model using the Full In-Context Learning Hummingbird  
-# or Dense k-NN Retrieval Evaluation on the Pascal VOC Dataset
-hbird_miou = hbird_evaluation(model.to(device), 
-        d_model=embed_dim,          # size of the embedding feature vectors of patches
-        patch_size=patch_size, 
-        batch_size = batch_size, 
-        input_size=224,             
-        augmentation_epoch=1,       # how many iterations of augmentations to use on top of 
-                                    # the training dataset in order to generate the memory
-        device=device,              
-        return_knn_details=False,   # whether to return additional NNs details
-        num_neighbour=30,           # the number of neighbors to fetch per image patch
-        nn_params=None,             # Other parameters to be used for the k-NN operator
-        ftr_extr_fn=fn,             # function that extracts image patch features with 
-                                    # a vision encoder
-        dataset_name='voc',         # the name of the dataset to use, 
-                                    # currently only Pascal VOC is included.
-        data_dir='<the path to the Pascal VOC Dataset>',    # path to the dataset 
-                                                            # to use for evaluation
-        memory_size=None)           # How much you want to limit your dataset, 
-                                    # None if to be left unbounded
-print('Dense NN Ret - miou score:', hbird_miou) 
-
-```
-###  Setup
-This is the section describing what is required to execute the Dense NN Retrieval Evaluation.
-
-#### Python Libraries
-The most prevalent libraries being used:
-* `torch` + `torchvision`
-* `torchmetrics`
-* `scann`
-* `numpy`
-* `joblib`
-
-#### Dataset Setup
-##### VOC Pascal
-We provide you with a zipped version of the whole dataset as well as with two smaller versions of it:
-* [Pascal VOC](https://1drv.ms/u/s!AnBBK4_o1T9MbXrxhV7BpGdS8tk?e=P7G6F0)
-* [Mini Pascal VOC](https://1drv.ms/u/s!AnBBK4_o1T9MdS8wbopnWowJcpM?e=VHhsFB)
-* [Tiny Pascal VOC](https://1drv.ms/u/s!AnBBK4_o1T9MdIuhcH4gbjsTdTY?e=spmlzg)
-
-The structure of the Pascal VOC dataset folder should be as follows:
-```
-dataset root.
-└───SegmentationClass
-│   │   *.png
-│   │   ...
-└───SegmentationClassAug # contains segmentation masks from trainaug extension 
-│   │   *.png
-│   │   ...
-└───images
-│   │   *.jpg
-│   │   ...
-└───sets
-│   │   train.txt
-│   │   trainaug.txt
-│   │   val.txt
+```sh
+wget -O voc_data.zip "https://c2ymfq.am.files.1drv.com/y4mZqATCHOv_Z88obTJ_ZatMGDEx6ts5TzOyJnVLKqmkXZwdL_PKIMFLNmZR9FLFJ1CHMC6h_7bJjxlcUM8yXjG92Ms1X-95x6Dh90QgawSpYDPoE1gmLx3VwnW2amZZEog-omFd87fTKZqn3lpP_mtisDQsfDzruBgz_JHcSWsZd2jrsN2qoV3cJ5HammjY_im0ftfjwNOup1EuiWcQ9KT6A"
+unzip voc_data.zip
 ```
 
-### Examples
-Basic example on how to download any of our dataset versions and evaluate a vision encoder with our implementation of the Hummingbird evaluation can be found at [hbird_eval_example](./examples/hbird_eval_example.ipynb) in the examples folder.
+You can also download a tiny version of Pascal VOC from [this link](https://cpf5rw.am.files.1drv.com/y4mxW5pUDPP2WOVWXZYdhd5PK82qXcqQURFvVTXGSfEk8igihjx8oyA_iSmeuMnwLSyNwN601Jq9Ec9PyN3olpCCCoNtrgYg7DkvrXUXyI-mymjQiSR0kgRZDvRRUw4SD9i4QFTa-q5W_A7WahXU5v1XroWUU8bKDgUbY0xbBuX67xZr4HGDQiT5b0cr4iPQbt6NJlKkAyWdXUkIL37xpL3JQ)
 
-You can also open it in google colab at:
+## Running Experiments
 
-<a href="https://githubtocolab.com/vpariza/open-hummingbird-eval/blob/main/examples/hbird_eval_example.ipynb">
-  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
-</a>
+Each experiment is split into two parts: the creation of a supporting index, used to fetch the negatives batch for the SimCLR loss, and the evaluation itself. Assuming the Pascal VOC dataset is stored in the `VOCSegmentation` folder you can build the supporting index with the following commands (which should replicate the second row, first cell of Table 3 in the paper):
 
-### Upcoming/Future Features
-Stay tuned with our work because we will bring more support and extensions of our implementation for extra features.
+```sh
+# Create a directory to store the supporting index
+# features, labels and the ScaNN index itself
+BASE_DIR=support_index
 
-| Feature | Description |
-| --- | --- |
-| `ADE20K` | Code and Results for the Dataset **ADE20K** |
-| `NYUv2` | Code and Results for the Dataset **NYUv2** |
+mkdir -p $BASE_DIR/index
 
-## Contributors
+SEED=42
+# Change depending on your GPU memory
+BATCH_SIZE=32
+PATCH_SIZE=16
+IMAGE_SIZE=512
+# Pick a DINO backbine between the ones available here
+# https://github.com/facebookresearch/dino
+BACKBONE=dino_vits16
+AUGMENTATION_EPOCHS=1
+# Path to Pascal VOC
+DATASET_DIRECTORY=./VOCSegmentation
+# The size of the support index. We use the same memory bank
+# size for both the "real" memory bank and the support index.
+# Pick one between (102400, 1024000, 10240000)
+MEMORY_BANK_SIZE=102400
 
-| n  | Username |
-| ------------- | ------------- |
-| 1  | [@vpariza](https://github.com/vpariza)  |
-| 2  | [@Smsd75](https://github.com/Smsd75) |
-| 3  | [@yukimasano](https://github.com/yukimasano) |
+# ScaNN index parameters (we use 5 neighbors as the loss computation only requires 2)
+NUM_NEIGHBORS=5
+NUM_LEAVES=512
+NUM_LEAVES_TO_SEARCH=32
+NUM_RERANK_CANDIDATES=120
+ANISOTROPIC_QUANTIZATION_THRESHOLD=0.2
+DIMENSIONS_PER_BLOCK=4
 
-## Citations
-If you find this repo helpful, please consider citing these works:
-
-The original paper:
+python create_memory_bank.py \
+    --seed $SEED \
+    --batch-size $BATCH_SIZE \
+    --input-size $IMAGE_SIZE \
+    --data-dir $DATASET_DIRECTORY \
+    --model $BACKBONE \
+    --memory-bank $BASE_DIR/features.pth \
+    --memory-bank-labels $BASE_DIR/labels.pth \
+    --scann-index $BASE_DIR/index \
+    --memory-size $MEMORY_BANK_SIZE \
+    --patch-size $PATCH_SIZE \
+    --augmentation-epochs $AUGMENTATION_EPOCHS \
+    --num-neighbors $NUM_NEIGHBORS \
+    --num-leaves $NUM_LEAVES \
+    --num-leaves-to-search $NUM_LEAVES_TO_SEARCH \
+    --num-reordering-candidates $NUM_RERANK_CANDIDATES \
+    --anisotropic-quantization-threshold $ANISOTROPIC_QUANTIZATION_THRESHOLD \
+    --dimensions-per-block $DIMENSIONS_PER_BLOCK
 ```
-@inproceedings{
-      balazevic2023towards,
-      title={Towards In-context Scene Understanding},
-      author={Ivana Balazevic and David Steiner and Nikhil Parthasarathy and Relja Arandjelovic and Olivier J Henaff},
-      booktitle={Thirty-seventh Conference on Neural Information Processing Systems},
-      year={2023},
-      url={https://openreview.net/forum?id=FasIQqsJhe}
-}
+
+Once you've created the supporting index, use the following commands to run the evaluation:
+
+```sh
+SEED=42
+BATCH_SIZE=4
+PATCH_SIZE=16
+IMAGE_SIZE=512
+# The size of the projection head output
+LATENT_DIM=96
+# Pick a DINO backbine between the ones available here
+# https://github.com/facebookresearch/dino
+BACKBONE=dino_vits16
+AUGMENTATION_EPOCHS=1
+# Path to Pascal VOC
+DATASET_DIRECTORY=./VOCSegmentation
+# Number of per-patch negatives
+NUM_NEIGHBORS=2
+# The size of the memory bank. Should match the support index size.
+# Pick one between (102400, 1024000, 10240000)
+MEMORY_BANK_SIZE=102400
+# The number of patch negatives that are used for the loss computation
+NEGATIVE_BATCH_PERCENT=0.5
+# Path to a folder with the support index features and NN index
+SUPPORT_DIR=support_index
+# Path to the layer used to extract gradients
+LAYER_PATH=backbone.blocks.11.attn.proj
+# Cross-attention temperature
+TEMPERATURE=0.02
+
+# ScaNN index parameters
+NUM_NEIGHBORS=30
+NUM_LEAVES=512
+NUM_LEAVES_TO_SEARCH=32
+NUM_RERANK_CANDIDATES=120
+ANISOTROPIC_QUANTIZATION_THRESHOLD=0.2
+DIMENSIONS_PER_BLOCK=4
+
+python eval_gradients.py \
+    --seed $SEED \
+    --use-fp16 \
+    --batch-size $BATCH_SIZE \
+    --input-size $IMAGE_SIZE \
+    --patch-size $PATCH_SIZE \
+    --gradients-layer $LAYER_PATH \
+    --data-dir $DATASET_DIRECTORY \
+    --model $BACKBONE \
+    --n-neighbors $NUM_NEIGHBORS \
+    --memory-bank $SUPPORT_DIR/features.pth \
+    --scann-index $SUPPORT_DIR/index \
+    --memory-size $MEMORY_BANK_SIZE \
+    --latent-dim $LATENT_DIM \
+    --negative-batch-percent $NEGATIVE_BATCH_PERCENT \
+    --temperature $TEMPERATURE \
+    --num-neighbors $NUM_NEIGHBORS \
+    --num-leaves $NUM_LEAVES \
+    --num-leaves-to-search $NUM_LEAVES_TO_SEARCH \
+    --num-reordering-candidates $NUM_RERANK_CANDIDATES \
+    --anisotropic-quantization-threshold $ANISOTROPIC_QUANTIZATION_THRESHOLD \
+    --dimensions-per-block $DIMENSIONS_PER_BLOCK
 ```
 
-Our work and repository:
+If you use the **tiny** version of Pascal VOC this should result in a performance of 46.80%.
+
+### Data Efficient Scene Understanding
+
+The experiments for the data efficient (i.e. with a limited number of samples) in-context scene understanding can be run using very similar commands. Once again, start by creating the support index using the commands below (we use 83 training samples here).
+
+It's important to note that we do not specify a memory bank size, leaving it unbounded, as the original memory bank size for this experiment (20480000) allows us to store the entirety of the dataset, as in the worst case we have:
+
+$N * P * A = 165 \times 1024 \times 8 = 1351680 < 20480000$
+
+patches to store, where:
+
+- $N$: number of images in the training dataset
+- $P$: number of patches per image
+- $A$: number of augmentation epochs
+
+```sh
+# Create a directory to store the supporting index
+# features, labels and the ScaNN index itself
+BASE_DIR=support_index_efficient
+
+mkdir -p $BASE_DIR/index
+
+SEED=42
+# Change depending on your GPU memory
+BATCH_SIZE=32
+PATCH_SIZE=16
+IMAGE_SIZE=512
+# Pick a DINO backbine between the ones available here
+# https://github.com/facebookresearch/dino
+BACKBONE=dino_vits16
+AUGMENTATION_EPOCHS=8
+# Path to Pascal VOC
+DATASET_DIRECTORY=./VOCSegmentation
+
+# ScaNN index parameters (we use 5 neighbors as the loss computation only requires 2)
+NUM_NEIGHBORS=5
+NUM_LEAVES=512
+NUM_LEAVES_TO_SEARCH=32
+NUM_RERANK_CANDIDATES=120
+ANISOTROPIC_QUANTIZATION_THRESHOLD=0.2
+DIMENSIONS_PER_BLOCK=4
+
+# Training dataset size
+TRAIN_SAMPLES=83
+
+python create_memory_bank.py \
+    --seed $SEED \
+    --batch-size $BATCH_SIZE \
+    --input-size $IMAGE_SIZE \
+    --data-dir $DATASET_DIRECTORY \
+    --model $BACKBONE \
+    --memory-bank $BASE_DIR/features.pth \
+    --memory-bank-labels $BASE_DIR/labels.pth \
+    --scann-index $BASE_DIR/index \
+    --patch-size $PATCH_SIZE \
+    --augmentation-epochs $AUGMENTATION_EPOCHS \
+    --num-neighbors $NUM_NEIGHBORS \
+    --num-leaves $NUM_LEAVES \
+    --num-leaves-to-search $NUM_LEAVES_TO_SEARCH \
+    --num-reordering-candidates $NUM_RERANK_CANDIDATES \
+    --anisotropic-quantization-threshold $ANISOTROPIC_QUANTIZATION_THRESHOLD \
+    --dimensions-per-block $DIMENSIONS_PER_BLOCK \
+    --num-train-samples $TRAIN_SAMPLES
 ```
-@misc{pariza2024hbird,
-      author = {Pariza, Valentinos and Salehi, Mohammadreza and Asano, Yuki},
-      month = {4},
-      title = {Hummingbird Evaluation for vision encoders},
-      url = {https://github.com/vpariza/open-hummingbird-eval},
-      year = {2024}
-}
+
+Once you've created the support index, use the script below to run the evaluation
+
+```sh
+SEED=42
+BATCH_SIZE=4
+PATCH_SIZE=16
+IMAGE_SIZE=512
+# The size of the projection head output
+LATENT_DIM=96
+# Pick a DINO backbine between the ones available here
+# https://github.com/facebookresearch/dino
+BACKBONE=dino_vits16
+AUGMENTATION_EPOCHS=8
+# Path to Pascal VOC
+DATASET_DIRECTORY=./VOCSegmentation
+# Number of per-patch negatives
+NUM_NEGATIVE_NEIGHBORS=2
+# The number of patch negatives that are used for the loss computation
+NEGATIVE_BATCH_PERCENT=0.25
+# Path to a folder with the support index features and NN index
+SUPPORT_DIR=support_index_efficient
+# Path to the layer used to extract gradients
+LAYER_PATH=backbone.blocks.11.attn.proj
+# Cross-attention temperature
+TEMPERATURE=0.1
+
+# ScaNN index parameters
+NUM_NEIGHBORS=90
+NUM_LEAVES=512
+NUM_LEAVES_TO_SEARCH=256
+NUM_RERANK_CANDIDATES=1800
+ANISOTROPIC_QUANTIZATION_THRESHOLD=0.2
+DIMENSIONS_PER_BLOCK=4
+
+# Training dataset size
+TRAIN_SAMPLES=83
+
+python eval_gradients.py \
+    --seed $SEED \
+    --use-fp16 \
+    --batch-size $BATCH_SIZE \
+    --input-size $IMAGE_SIZE \
+    --patch-size $PATCH_SIZE \
+    --gradients-layer $LAYER_PATH \
+    --data-dir $DATASET_DIRECTORY \
+    --model $BACKBONE \
+    --num-negative-neighbors $NUM_NEGATIVE_NEIGHBORS \
+    --memory-bank $SUPPORT_DIR/features.pth \
+    --scann-index $SUPPORT_DIR/index \
+    --latent-dim $LATENT_DIM \
+    --negative-batch-percent $NEGATIVE_BATCH_PERCENT \
+    --temperature $TEMPERATURE \
+    --num-neighbors $NUM_NEIGHBORS \
+    --num-leaves $NUM_LEAVES \
+    --num-leaves-to-search $NUM_LEAVES_TO_SEARCH \
+    --num-reordering-candidates $NUM_RERANK_CANDIDATES \
+    --anisotropic-quantization-threshold $ANISOTROPIC_QUANTIZATION_THRESHOLD \
+    --dimensions-per-block $DIMENSIONS_PER_BLOCK \
+    --num-train-samples $TRAIN_SAMPLES
 ```
+
+If you use the **tiny** version of Pascal VOC this should result in a performance of 27.69%.
