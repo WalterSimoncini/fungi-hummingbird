@@ -152,9 +152,8 @@ def compute_grad1(model: nn.Module, loss_type: str = 'mean', layer_paths: List[s
         model:
         loss_type: either "mean" or "sum" depending whether backpropped loss was averaged or summed over batch
     """
-
     assert loss_type in ('sum', 'mean')
-    # for layer in model.modules():
+
     for path in layer_paths:
         layer = get_layer(model=model, path=path)
 
@@ -185,14 +184,8 @@ def compute_grad1(model: nn.Module, loss_type: str = 'mean', layer_paths: List[s
         B = B.to(A.dtype)
 
         if layer_type == 'Linear' or layer_type == 'NonDynamicallyQuantizableLinear':
-            # The original einsum (commented) ignores the token dimension
-            # import ipdb
-            # ipdb.set_trace()
-            # setattr(layer.weight, 'grad1', torch.einsum('ni,nj->nij', B, A))
+            # "t" preserves the tokens dimensions
             setattr(layer.weight, 'grad1', torch.einsum('nti,ntj->ntij', B, A))
-
-            
-            # setattr(layer.weight, 'grad1', torch.einsum('nti,ntj->nij', B, A))
 
             if layer.bias is not None:
                 setattr(layer.bias, 'grad1', B)
