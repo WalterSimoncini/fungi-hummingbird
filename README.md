@@ -1,6 +1,6 @@
 # FUNGI HummingBird Evaluation
 
-This repository contains the HummingBird evaluation for FUNGI features, and it builds on top of [open-hummingbird-eval](https://github.com/vpariza/open-hummingbird-eval). We recommend using the original repository to evaluate the raw DINO features.
+This repository contains the HummingBird evaluation for FUNGI features, built on top of  [open-hummingbird-eval](https://github.com/vpariza/open-hummingbird-eval). We recommend using the original repository to evaluate the raw DINO features.
 
 ## Setup
 
@@ -20,11 +20,11 @@ wget -O voc_data.zip "https://c2ymfq.am.files.1drv.com/y4mZqATCHOv_Z88obTJ_ZatMG
 unzip voc_data.zip
 ```
 
-You can also download a tiny version of Pascal VOC from [this link](https://cpf5rw.am.files.1drv.com/y4mxW5pUDPP2WOVWXZYdhd5PK82qXcqQURFvVTXGSfEk8igihjx8oyA_iSmeuMnwLSyNwN601Jq9Ec9PyN3olpCCCoNtrgYg7DkvrXUXyI-mymjQiSR0kgRZDvRRUw4SD9i4QFTa-q5W_A7WahXU5v1XroWUU8bKDgUbY0xbBuX67xZr4HGDQiT5b0cr4iPQbt6NJlKkAyWdXUkIL37xpL3JQ)
+You can also download a tiny version of Pascal VOC from [this link](https://cpf5rw.am.files.1drv.com/y4mxW5pUDPP2WOVWXZYdhd5PK82qXcqQURFvVTXGSfEk8igihjx8oyA_iSmeuMnwLSyNwN601Jq9Ec9PyN3olpCCCoNtrgYg7DkvrXUXyI-mymjQiSR0kgRZDvRRUw4SD9i4QFTa-q5W_A7WahXU5v1XroWUU8bKDgUbY0xbBuX67xZr4HGDQiT5b0cr4iPQbt6NJlKkAyWdXUkIL37xpL3JQ).
 
 ## Running Experiments
 
-Each experiment is split into two parts: the creation of a supporting index, used to fetch the negatives batch for the SimCLR loss, and the evaluation itself. Assuming the Pascal VOC dataset is stored in the `VOCSegmentation` folder you can build the supporting index with the following commands (which should replicate the second row, first cell of Table 3 in the paper):
+Each experiment is split into two parts: the creation of a support index, used to fetch the negative batch for the SimCLR loss, and the evaluation itself. Assuming the Pascal VOC dataset is stored in the `VOCSegmentation` folder, you can build the supporting index using the commands below. You should then be able to replicate the second row, first column of Table 3 in the paper. This document also reports the results for the scripts below on `VOC-Tiny`.
 
 ```sh
 # Create a directory to store the supporting index
@@ -38,7 +38,7 @@ SEED=42
 BATCH_SIZE=32
 PATCH_SIZE=16
 IMAGE_SIZE=512
-# Pick a DINO backbine between the ones available here
+# Pick a DINO backbone between the ones available here
 # https://github.com/facebookresearch/dino
 BACKBONE=dino_vits16
 AUGMENTATION_EPOCHS=1
@@ -49,7 +49,8 @@ DATASET_DIRECTORY=./VOCSegmentation
 # Pick one between (102400, 1024000, 10240000)
 MEMORY_BANK_SIZE=102400
 
-# ScaNN index parameters (we use 5 neighbors as the loss computation only requires 2)
+# ScaNN index parameters (we use 5 neighbors as
+# the loss computation only requires 2)
 NUM_NEIGHBORS=5
 NUM_LEAVES=512
 NUM_LEAVES_TO_SEARCH=32
@@ -86,7 +87,7 @@ PATCH_SIZE=16
 IMAGE_SIZE=512
 # The size of the projection head output
 LATENT_DIM=96
-# Pick a DINO backbine between the ones available here
+# Pick a DINO backbone between the ones available here
 # https://github.com/facebookresearch/dino
 BACKBONE=dino_vits16
 AUGMENTATION_EPOCHS=1
@@ -138,11 +139,11 @@ python eval_gradients.py \
     --dimensions-per-block $DIMENSIONS_PER_BLOCK
 ```
 
-If you use the **tiny** version of Pascal VOC this should result in a performance of 46.80%.
+Using `VOC-Tiny` this experiment should result in a mIoU of 46.80%.
 
 ### Data Efficient Scene Understanding
 
-The experiments for the data efficient (i.e. with a limited number of samples) in-context scene understanding can be run using very similar commands. Once again, start by creating the support index using the commands below (we use 83 training samples here).
+The experiments for data-efficient (i.e., with a limited number of samples) in-context scene understanding can be run using very similar commands as the regular experiment. Once again, start by creating the support index using the commands below (we use 83 training samples here).
 
 It's important to note that we do not specify a memory bank size, leaving it unbounded, as the original memory bank size for this experiment (20480000) allows us to store the entirety of the dataset, as in the worst case we have:
 
@@ -166,14 +167,15 @@ SEED=42
 BATCH_SIZE=32
 PATCH_SIZE=16
 IMAGE_SIZE=512
-# Pick a DINO backbine between the ones available here
+# Pick a DINO backbone between the ones available here
 # https://github.com/facebookresearch/dino
 BACKBONE=dino_vits16
 AUGMENTATION_EPOCHS=8
 # Path to Pascal VOC
 DATASET_DIRECTORY=./VOCSegmentation
 
-# ScaNN index parameters (we use 5 neighbors as the loss computation only requires 2)
+# ScaNN index parameters (we use 5 neighbors as the
+# loss computation only requires 2)
 NUM_NEIGHBORS=5
 NUM_LEAVES=512
 NUM_LEAVES_TO_SEARCH=32
@@ -204,7 +206,7 @@ python create_memory_bank.py \
     --num-train-samples $TRAIN_SAMPLES
 ```
 
-Once you've created the support index, use the script below to run the evaluation
+Once you've created the support index, use the script below to run the evaluation.
 
 ```sh
 SEED=42
@@ -213,7 +215,7 @@ PATCH_SIZE=16
 IMAGE_SIZE=512
 # The size of the projection head output
 LATENT_DIM=96
-# Pick a DINO backbine between the ones available here
+# Pick a DINO backbone between the ones available here
 # https://github.com/facebookresearch/dino
 BACKBONE=dino_vits16
 AUGMENTATION_EPOCHS=8
@@ -222,7 +224,7 @@ DATASET_DIRECTORY=./VOCSegmentation
 # Number of per-patch negatives
 NUM_NEGATIVE_NEIGHBORS=2
 # The number of patch negatives that are used for the loss computation
-NEGATIVE_BATCH_PERCENT=0.25
+NEGATIVE_BATCH_PERCENT=0.5
 # Path to a folder with the support index features and NN index
 SUPPORT_DIR=support_index_efficient
 # Path to the layer used to extract gradients
@@ -265,4 +267,4 @@ python eval_gradients.py \
     --num-train-samples $TRAIN_SAMPLES
 ```
 
-If you use the **tiny** version of Pascal VOC this should result in a performance of 27.69%.
+Using `VOC-Tiny` this experiment should result in a mIoU of 27.69%.
