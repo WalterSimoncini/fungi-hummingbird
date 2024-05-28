@@ -27,17 +27,17 @@ def main(args):
 
     create_memory_bank(
         model.to(device),
-        d_model=embedding_size,        # size of the embedding feature vectors of patches
+        d_model=embedding_size,
         patch_size=args.patch_size,
         batch_size = args.batch_size,
         input_size=args.input_size,
-        augmentation_epoch=args.augmentation_epochs,     # how many iterations of augmentations to use on top of the training dataset in order to generate the memory
+        # How many iterations of augmentations to use on top of the training dataset in order to generate the memory
+        augmentation_epoch=args.augmentation_epochs,
         device=device,
-        num_neighbour=args.num_neighbors,         # the number of neighbors to fetch per image patch
-        nn_params=None,           # Other parameters to be used for the k-NN operator
-        ftr_extr_fn=token_features,           # function that extracts features from a vision encoder on images
-        dataset_name="voc",       # the name of the dataset to use, currently only Pascal VOC is included.
-        data_dir=args.data_dir,    # path to the dataset to use for evaluation
+        # Function that maps an image to a set of patches
+        ftr_extr_fn=token_features,
+        dataset_name="voc",
+        data_dir=args.data_dir,
         memory_size=args.memory_size,
         f_mem_p=args.memory_bank,
         l_mem_p=args.memory_bank_labels,
@@ -45,6 +45,7 @@ def main(args):
     )
 
     print(f"saved the memory bank to {args.memory_bank}")
+    print(f"saved the memory bank labels to {args.memory_bank_labels}")
     print("creating a scann index...")
 
     memory = torch.load(args.memory_bank)
@@ -80,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--input-size", type=int, default=224, help="Size of the images fed to the model")
     parser.add_argument("--patch-size", type=int, default=16, help="Size of the model patches")
-    parser.add_argument("--model", type=str, required=True, help="Model name (dino_xxx, supervised, supervised_in21k)")
+    parser.add_argument("--model", type=str, required=True, help="Model name (dino_xxx)")
     parser.add_argument("--memory-size", type=int, default=None, help="The size of the memory bank")
     parser.add_argument("--augmentation-epochs", type=int, default=1, help="The number of augmentation epochs")
 

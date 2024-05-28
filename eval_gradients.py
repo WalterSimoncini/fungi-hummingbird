@@ -167,8 +167,8 @@ def main(args):
 
         tokens = tokens[:, 1:, :]
 
-        # Project the gradients from [H, W + 1] to [H] and reshape them back
-        # to per token gradients
+        # Project the gradients from [H, W + 1] to E and reshape
+        # them back to per token gradients
         token_gradients = scaling * (projection @ batch_gradients.T).permute(1, 0)
         token_gradients = token_gradients.reshape(B, T, E)
 
@@ -184,16 +184,17 @@ def main(args):
 
     hbird_miou = hbird_evaluation(
         model.to(device),
-        # size of the embedding feature vectors of patches.
-        # Here we double the embeddings size as we are also using the gradients information
+        # size of the embedding feature vectors of patches. Here we double
+        # the embeddings size as we are also using the gradients information
         d_model=E * 2,
         patch_size=args.patch_size,
         batch_size=args.batch_size,
         input_size=args.input_size,
-        augmentation_epoch=args.augmentation_epochs,     # how many iterations of augmentations to use on top of the training dataset in order to generate the memory
+        augmentation_epoch=args.augmentation_epochs,
         device=device,
-        return_knn_details=False, # whether to return additional NNs details
-        num_neighbour=args.num_neighbors,         # the number of neighbors to fetch per image patch
+        return_knn_details=False,
+        # The number of neighbors to fetch per image patch
+        num_neighbour=args.num_neighbors,
         # Other parameters to be used for the k-NN operator
         nn_params={
             "num_leaves": args.num_leaves,
@@ -201,10 +202,11 @@ def main(args):
             "anisotropic_quantization_threshold": args.anisotropic_quantization_threshold,
             "num_reordering_candidates": args.num_reordering_candidates,
             "dimensions_per_block": args.dimensions_per_block
-        },           
-        ftr_extr_fn=combined_token_features,           # function that extracts features from a vision encoder on images
-        dataset_name="voc",       # the name of the dataset to use, currently only Pascal VOC is included.
-        data_dir=args.data_dir,    # path to the dataset to use for evaluation
+        },
+        # The function that maps an image to patch features
+        ftr_extr_fn=combined_token_features,
+        dataset_name="voc",
+        data_dir=args.data_dir,
         memory_size=args.memory_size,
         num_train_samples=args.num_train_samples,
         temperature=args.temperature
@@ -245,7 +247,7 @@ if __name__ == "__main__":
     parser.add_argument("--gradients-layer", type=str, required=True, help="The layer from which gradients will be extracted from")
 
     # Data arguments
-    parser.add_argument("--data-dir", type=str, default="VOCSegmentation-Tiny", help="Path to the VOC dataset")
+    parser.add_argument("--data-dir", type=str, default="VOCSegmentation", help="Path to the VOC dataset")
     parser.add_argument("--memory-bank", type=str, required=True, help="Path to the patches memory bank")
     parser.add_argument("--scann-index", type=str, required=True, help="Path to the patches memory bank scann index")
     parser.add_argument("--num-train-samples", type=int, required=False, default=None, help="How many dataset samples should be used? None means all samples will be used")

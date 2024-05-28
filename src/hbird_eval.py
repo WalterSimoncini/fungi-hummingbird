@@ -131,51 +131,50 @@ class HbirdEvaluation():
         ).reorder(num_reordering_candidates).build()
 
     def create_memory(self, train_loader, num_classes, eval_spatial_resolution):
+        idx = 0
         feature_memory = list()
         label_memory = list()
-        idx = 0
-        # with torch.no_grad():
-        if True: # used to views the actual changes in git
-            for j in range(self.augmentation_epoch):
-                for i, (x, y) in enumerate(tqdm(train_loader, desc='Memory Creation loop')):
-                    x = x.to(self.device)
-                    y = y.to(self.device)
-                    y = (y * 255).long()
-                    y[y == 255] = 0
-                    features, _ = self.feature_extractor.forward_features(x)
-                    input_size = x.shape[-1]
-                    patch_size = input_size // eval_spatial_resolution
-                    patchified_gts = self.patchify_gt(y, patch_size) ## (bs, spatial_resolution, spatial_resolution, c*patch_size*patch_size)
-                    one_hot_patch_gt = F.one_hot(patchified_gts, num_classes=num_classes).float()
-                    label = one_hot_patch_gt.mean(dim=3)
-                    if self.memory_size is None:
-                        # Memory Size is unbounded so we store all the features
-                        normalized_features = F.normalize(features, dim=-1, p=2)
 
-                        normalized_features = normalized_features.flatten(0, 1)
-                        label = label.flatten(0, 2)
-                        feature_memory.append(normalized_features.detach().cpu())
-                        label_memory.append(label.detach().cpu())
-                    else:
-                        # Memory Size is bounded so we need to select/sample some features only
-                        sampled_features, sampled_indices = self.sample_features(features, patchified_gts)
-                        normalized_sampled_features = F.normalize(sampled_features, dim=-1, p=2)
-                        label = label.flatten(1, 2)
-                        ## select the labels of the sampled features
-                        sampled_indices = sampled_indices.to(self.device)
-                        ## repeat the label for each sampled feature
-                        label_hat = label.gather(1, sampled_indices.unsqueeze(-1).repeat(1, 1, label.shape[-1]))
+        for j in range(self.augmentation_epoch):
+            for i, (x, y) in enumerate(tqdm(train_loader, desc='Memory Creation loop')):
+                x = x.to(self.device)
+                y = y.to(self.device)
+                y = (y * 255).long()
+                y[y == 255] = 0
+                features, _ = self.feature_extractor.forward_features(x)
+                input_size = x.shape[-1]
+                patch_size = input_size // eval_spatial_resolution
+                patchified_gts = self.patchify_gt(y, patch_size) ## (bs, spatial_resolution, spatial_resolution, c*patch_size*patch_size)
+                one_hot_patch_gt = F.one_hot(patchified_gts, num_classes=num_classes).float()
+                label = one_hot_patch_gt.mean(dim=3)
+                if self.memory_size is None:
+                    # Memory Size is unbounded so we store all the features
+                    normalized_features = F.normalize(features, dim=-1, p=2)
 
-                        # label_hat = label.gather(1, sampled_indices)
-                        normalized_sampled_features = normalized_sampled_features.flatten(0, 1)
-                        label_hat = label_hat.flatten(0, 1)
-                        self.feature_memory[idx:idx+normalized_sampled_features.size(0)] = normalized_sampled_features.detach().cpu()
-                        self.label_memory[idx:idx+label_hat.size(0)] = label_hat.detach().cpu()
-                        idx += normalized_sampled_features.size(0)
-                        # memory.append(normalized_sampled_features.detach().cpu())
-            if self.memory_size is None:
-                self.feature_memory = torch.cat(feature_memory)
-                self.label_memory = torch.cat(label_memory)
+                    normalized_features = normalized_features.flatten(0, 1)
+                    label = label.flatten(0, 2)
+                    feature_memory.append(normalized_features.detach().cpu())
+                    label_memory.append(label.detach().cpu())
+                else:
+                    # Memory Size is bounded so we need to select/sample some features only
+                    sampled_features, sampled_indices = self.sample_features(features, patchified_gts)
+                    normalized_sampled_features = F.normalize(sampled_features, dim=-1, p=2)
+                    label = label.flatten(1, 2)
+                    ## select the labels of the sampled features
+                    sampled_indices = sampled_indices.to(self.device)
+                    ## repeat the label for each sampled feature
+                    label_hat = label.gather(1, sampled_indices.unsqueeze(-1).repeat(1, 1, label.shape[-1]))
+
+                    # label_hat = label.gather(1, sampled_indices)
+                    normalized_sampled_features = normalized_sampled_features.flatten(0, 1)
+                    label_hat = label_hat.flatten(0, 1)
+                    self.feature_memory[idx:idx+normalized_sampled_features.size(0)] = normalized_sampled_features.detach().cpu()
+                    self.label_memory[idx:idx+label_hat.size(0)] = label_hat.detach().cpu()
+                    idx += normalized_sampled_features.size(0)
+                    # memory.append(normalized_sampled_features.detach().cpu())
+        if self.memory_size is None:
+            self.feature_memory = torch.cat(feature_memory)
+            self.label_memory = torch.cat(label_memory)
 
     def save_memory(self):
         if self.f_mem_p is not None:
@@ -299,58 +298,56 @@ class HbirdEvaluation():
         knns = []
         knns_labels = []
         knns_ca_labels = []
-        idx = 0
-        # with torch.no_grad():
-        if True: # used to views the actual changes in git
-            for i, (x, y) in enumerate(tqdm(val_loader, desc='Evaluation loop')):
-                x = x.to(self.device)
-                _, _, h, w = x.shape
-                features, _ = self.feature_extractor.forward_features(x.to(self.device))
-                features = features.to(self.device)
-                y = y.to(self.device)
-                y = (y * 255).long()
-                ## copy the data of features to another variable
-                q = features.clone()
-                q = q.detach().cpu().numpy()
-                key_features, key_labels = self.find_nearest_key_to_query(q)
 
-                label_hat =  self.cross_attention(
-                    features,
-                    key_features,
-                    key_labels,
-                    beta=self.temperature
-                )
+        for i, (x, y) in enumerate(tqdm(val_loader, desc='Evaluation loop')):
+            x = x.to(self.device)
+            _, _, h, w = x.shape
+            features, _ = self.feature_extractor.forward_features(x.to(self.device))
+            features = features.to(self.device)
+            y = y.to(self.device)
+            y = (y * 255).long()
+            ## copy the data of features to another variable
+            q = features.clone()
+            q = q.detach().cpu().numpy()
+            key_features, key_labels = self.find_nearest_key_to_query(q)
 
-                if return_knn_details:
-                    knns.append(key_features.detach().cpu())
-                    knns_labels.append(key_labels.detach().cpu())
-                    knns_ca_labels.append(label_hat.detach().cpu())
-                bs, _, label_dim = label_hat.shape
-                label_hat = label_hat.reshape(bs, eval_spatial_resolution, eval_spatial_resolution, label_dim).permute(0, 3, 1, 2)
-                resized_label_hats =  F.interpolate(label_hat.float(), size=(h, w), mode="bilinear")
-                cluster_map = resized_label_hats.argmax(dim=1).unsqueeze(1)
-                label_hats.append(cluster_map.detach().cpu())
-                lables.append(y.detach().cpu())
-
-            lables = torch.cat(lables) 
-            label_hats = torch.cat(label_hats)
-            valid_idx = lables != 255
-            valid_target = lables[valid_idx]
-            valid_cluster_maps = label_hats[valid_idx]
-            metric.update(valid_target, valid_cluster_maps)
-            jac, tp, fp, fn, reordered_preds, matched_bg_clusters = metric.compute(is_global_zero=True)
-
-            # Free up some CPU memory, as these are not needed anymore
-            del self.feature_memory
-            del self.NN_algorithm
+            label_hat =  self.cross_attention(
+                features,
+                key_features,
+                key_labels,
+                beta=self.temperature
+            )
 
             if return_knn_details:
-                knns = torch.cat(knns)
-                knns_labels = torch.cat(knns_labels)
-                knns_ca_labels = torch.cat(knns_ca_labels)
-                return jac, {"knns": knns, "knns_labels": knns_labels, "knns_ca_labels": knns_ca_labels}
-            else:
-                return jac
+                knns.append(key_features.detach().cpu())
+                knns_labels.append(key_labels.detach().cpu())
+                knns_ca_labels.append(label_hat.detach().cpu())
+            bs, _, label_dim = label_hat.shape
+            label_hat = label_hat.reshape(bs, eval_spatial_resolution, eval_spatial_resolution, label_dim).permute(0, 3, 1, 2)
+            resized_label_hats =  F.interpolate(label_hat.float(), size=(h, w), mode="bilinear")
+            cluster_map = resized_label_hats.argmax(dim=1).unsqueeze(1)
+            label_hats.append(cluster_map.detach().cpu())
+            lables.append(y.detach().cpu())
+
+        lables = torch.cat(lables) 
+        label_hats = torch.cat(label_hats)
+        valid_idx = lables != 255
+        valid_target = lables[valid_idx]
+        valid_cluster_maps = label_hats[valid_idx]
+        metric.update(valid_target, valid_cluster_maps)
+        jac, tp, fp, fn, reordered_preds, matched_bg_clusters = metric.compute(is_global_zero=True)
+
+        # Free up some CPU memory, as these are not needed anymore
+        del self.feature_memory
+        del self.NN_algorithm
+
+        if return_knn_details:
+            knns = torch.cat(knns)
+            knns_labels = torch.cat(knns_labels)
+            knns_ca_labels = torch.cat(knns_ca_labels)
+            return jac, {"knns": knns, "knns_labels": knns_labels, "knns_ca_labels": knns_ca_labels}
+        else:
+            return jac
 
 
 def hbird_evaluation(
